@@ -25,7 +25,7 @@ class HListTests {
   import Poly._
   import Traversables._
   import Nat._
-  import Tuples._
+  //import Tuples._
 
   type SI = Set[Int] :: HNil
   type OI = Option[Int] :: HNil
@@ -558,6 +558,8 @@ class HListTests {
   
   @Test
   def testZipUnzip {
+    import Tuples.hlisted
+    
     val l1 = 1 :: "a" :: 1.0 :: HNil
     val l2 = 2 :: "b" :: 2.0 :: HNil
     

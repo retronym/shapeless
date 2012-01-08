@@ -16,6 +16,203 @@
 
 package shapeless
 
+final class TupleOps[T <: Product, L <: HList](l : L) {
+  import HList._
+  
+  def hlisted : L = l
+  
+  /**
+   * Returns the head of this `HList`. Available only if there is evidence that this `HList` is composite.
+   */
+  def head(implicit c : IsHCons[L]) : c.H = c.head(l) 
+
+  /**
+   * Returns that tail of this `HList`. Available only if there is evidence that this `HList` is composite.
+   */
+  def tail[H, M <: HList](implicit c : IsHConsAux[L, H, M], tupler : Tupler[M]) : tupler.Out = c.tail(l).tupled
+  
+  /**
+   * Prepend the argument element to this `HList`.
+   */
+  def ::[H](h : H)(implicit tupler : Tupler[H :: L]) : tupler.Out = (h :: l).tupled
+  
+  /**
+   * Prepend the argument `HList` to this `HList`.
+   */
+  def :::[P <: Product, M <: HList, ML <: HList](prefix : P)
+    (implicit
+      hlister : HListerAux[P, M],
+      prepend : PrependAux[M, L, ML],
+      tupler : Tupler[ML]) : tupler.Out = prepend(hlister(prefix), l).tupled
+  
+  /**
+   * Prepend the reverse of the argument `HList` to this `HList`.
+   */
+  def reverse_:::[P <: Product, M <: HList, ML <: HList](prefix : P)
+    (implicit
+      hlister : HListerAux[P, M],
+      prepend : ReversePrependAux[M, L, ML],
+      tupler : Tupler[ML]) : tupler.Out = prepend(hlister(prefix), l).tupled
+
+  /**
+   * Returns the ''nth'' of this `HList`. An explicit type argument must be provided. Available only if there is
+   * evidence that this `HList` has at least ''n'' elements.
+   */
+  def apply[N <: Nat](implicit at : At[L, N]) : at.Out = at(l)
+
+  /**
+   * Returns the ''nth'' of this `HList`. Available only if there is evidence that this `HList` has at least ''n''
+   * elements.
+   */
+  def apply[N <: Nat](n : N)(implicit at : At[L, N]) : at.Out = at(l)
+  
+  /**
+   * Returns the last element of this `HList`. Available only if there is evidence that this `HList` is composite.
+   */
+  def last(implicit last : Last[L]) : last.Out = last(l)
+
+  /**
+   * Returns an `HList` consisting of all the elements of this `HList` except the last. Available only if there is
+   * evidence that this `HList` is composite.
+   */
+  def init[I <: HList](implicit init : InitAux[L, I], tupler : Tupler[I]) : tupler.Out = init(l).tupled
+  
+  /**
+   * Returns the first element of type `U` of this `HList`. An explicit type argument must be provided. Available only
+   * if there is evidence that this `HList` has an element of type `U`.
+   */
+  def select[U](implicit selector : Selector[L, U]) : U = selector(l)
+  
+  /**
+   * Returns the first ''n'' elements of this `HList`. Available only if there is evidence that this `HList` has at
+   * least ''n'' elements.
+   */
+  def take[N <: Nat, M <: HList](n : N)(implicit take : TakeAux[L, N, M], tupler : Tupler[M]) : tupler.Out = take(l).tupled
+  
+  /**
+   * Returns all but the  first ''n'' elements of this `HList`. Available only if there is evidence that this `HList`
+   * has at least ''n'' elements.
+   */
+  def drop[N <: Nat, M <: HList](n : N)(implicit drop : DropAux[L, N, M], tupler : Tupler[M]) : tupler.Out = drop(l).tupled
+  
+  /**
+   * Splits this `HList` at the ''nth'' element, returning the prefix and suffix as a pair. An explicit type argument
+   * must be provided. Available only if there is evidence that this `HList` has at least ''n'' elements.
+   */
+  def split[N <: Nat, P <: HList, S <: HList]
+    (implicit
+      split : SplitAux[L, N, P, S],
+      tuplerP : Tupler[P],
+      tuplerS : Tupler[S]) : (tuplerP.Out, tuplerS.Out) = { val (p, s) = split(HNil, l) ; (p.tupled, s.tupled) }
+
+  /**
+   * Splits this `HList` at the ''nth'' element, returning the prefix and suffix as a pair. Available only if there is
+   * evidence that this `HList` has at least ''n'' elements.
+   */
+  def split[N <: Nat, P <: HList, S <: HList](n : N)
+    (implicit
+      split : SplitAux[L, N, P, S],
+      tuplerP : Tupler[P],
+      tuplerS : Tupler[S]) : (tuplerP.Out, tuplerS.Out) = { val (p, s) = split(HNil, l) ; (p.tupled, s.tupled) }
+
+  /**
+   * Splits this `HList` at the ''nth'' element, returning the reverse of the prefix and suffix as a pair. An explicit
+   * type argument must be provided. Available only if there is evidence that this `HList` has at least ''n'' elements.
+   */
+  def reverse_split[N <: Nat, P <: HList, S <: HList]
+    (implicit
+      split : ReverseSplitAux[L, N, P, S],
+      tuplerP : Tupler[P],
+      tuplerS : Tupler[S]) : (tuplerP.Out, tuplerS.Out) = { val (p, s) = split(HNil, l) ; (p.tupled, s.tupled) }
+
+  /**
+   * Splits this `HList` at the ''nth'' element, returning the reverse of the prefix and suffix as a pair. Available
+   * only if there is evidence that this `HList` has at least ''n'' elements.
+   */
+  def reverse_split[N <: Nat, P <: HList, S <: HList](n : N)
+    (implicit
+      split : ReverseSplitAux[L, N, P, S],
+      tuplerP : Tupler[P],
+      tuplerS : Tupler[S]) : (tuplerP.Out, tuplerS.Out) = { val (p, s) = split(HNil, l) ; (p.tupled, s.tupled) }
+
+  /**
+   * Splits this `HList` at the first occurrence of an element of type `U`, returning the prefix and suffix as a pair.
+   * An explicit type argument must be provided. Available only if there is evidence that this `HList` has an element
+   * of type `U`.
+   */
+  def splitLeft[U, P <: HList, S <: HList]
+    (implicit
+      splitLeft : SplitLeftAux[L, U, P, S],
+      tuplerP : Tupler[P],
+      tuplerS : Tupler[S]) : (tuplerP.Out, tuplerS.Out) = { val (p, s) = splitLeft(HNil, l) ; (p.tupled, s.tupled) }
+
+  /**
+   * Splits this `HList` at the first occurrence of an element of type `U`, returning reverse of the prefix and suffix
+   * as a pair. An explicit type argument must be provided. Available only if there is evidence that this `HList` has
+   * an element of type `U`.
+   */
+  def reverse_splitLeft[U, P <: HList, S <: HList]
+    (implicit
+      splitLeft : ReverseSplitLeftAux[L, U, P, S],
+      tuplerP : Tupler[P],
+      tuplerS : Tupler[S]) : (tuplerP.Out, tuplerS.Out) = { val (p, s) = splitLeft(HNil, l) ; (p.tupled, s.tupled) }
+
+  /**
+   * Splits this `HList` at the last occurrence of an element of type `U`, returning the prefix and suffix as a pair.
+   * An explicit type argument must be provided. Available only if there is evidence that this `HList` has an element
+   * of type `U`.
+   */
+  def splitRight[U, P <: HList, S <: HList]
+    (implicit
+      splitRight : SplitRightAux[L, U, P, S],
+      tuplerP : Tupler[P],
+      tuplerS : Tupler[S]) : (tuplerP.Out, tuplerS.Out) = { val (p, s) = splitRight(l, HNil, HNil) ; (p.tupled, s.tupled) }
+
+  /**
+   * Splits this `HList` at the last occurrence of an element of type `U`, returning reverse of the prefix and suffix
+   * as a pair. An explicit type argument must be provided. Available only if there is evidence that this `HList` has
+   * an element of type `U`.
+   */
+  def reverse_splitRight[U, P <: HList, S <: HList]
+    (implicit
+      splitRight : ReverseSplitRightAux[L, U, P, S],
+      tuplerP : Tupler[P],
+      tuplerS : Tupler[S]) : (tuplerP.Out, tuplerS.Out) = { val (p, s) = splitRight(l, HNil, HNil) ; (p.tupled, s.tupled) }
+
+  /**
+   * Reverses this `HList`.
+   */
+  def reverse[M <: HList](implicit reverse : ReverseAux[L, M], tupler : Tupler[M]) : tupler.Out = reverse(HNil, l).tupled
+
+  /**
+   * Maps a higher rank function across this `HList`.
+   */
+  def map[HF, M <: HList](f : HF)(implicit mapper : MapperAux[HF, L, M], tupler : Tupler[M]) : tupler.Out = mapper(l).tupled
+
+  /**
+   * Replaces each element of this `HList` with a constant value.
+   */
+  def mapConst[C, M <: HList](c : C)(implicit mapper : ConstMapperAux[C, L, M], tupler : Tupler[M]) : tupler.Out = mapper(c, l).tupled
+  
+  /**
+   * Maps a higher rank function ''f'' across this `HList` and folds the result using monomorphic combining operator
+   * ''op''. Available only if there is evidence that the result type of `f` at each element conforms to the argument
+   * type of ''op''.
+   */
+  def foldLeft[R, HF](z : R)(f : HF)(op : (R, R) => R)(implicit folder : LeftFolder[L, R, HF]) : R = folder(l, z, op)
+  
+  /**
+   * Returns an `HList` typed as a repetition of the least upper bound of the types of the elements of this `HList`.
+   */
+  def unify[M <: HList](implicit unifier : UnifierAux[L, M], tupler : Tupler[M]) : tupler.Out = unifier(l).tupled
+
+  /**
+   * Converts this `HList` to an ordinary List of elements typed as the least upper bound of the types of the elements
+   * of this `HList`.
+   */
+  def toList[Lub](implicit toList : ToList[L, Lub]) : List[Lub] = toList(l)
+}
+
 /**
  * Conversions between `Tuples` and `HLists`.
  * 
@@ -26,13 +223,8 @@ package shapeless
  * @author Miles Sabin
  */
 object Tuples {
-  trait TupleOps[L <: HList] {
-    def hlisted : L
-  }
   
-  implicit def tupleOps[T <: Product](t : T)(implicit hlister : HLister[T]) = new TupleOps[hlister.Out] {
-    def hlisted = hlister(t)
-  }
+  implicit def tupleOps[T <: Product](t : T)(implicit hlister : HLister[T]) = new TupleOps[T, hlister.Out](hlister(t))
   
   /**
    * Higher ranked function which converts `Tuples` to `HLists`. 
@@ -47,20 +239,6 @@ object Tuples {
    * Monomorphic instantiator for [[shapeless.Tuples.hlisted]].
    */
   implicit def univInstHListed[F, G](h : hlisted.type)(implicit c : Case[hlisted.type, F => G]) : F => G = c.value
-  
-  /**
-   * Higher ranked function which converts `HLists` to `Tuples`. 
-   */
-  object tupled {
-    def apply[L <: HList](l : L)(implicit tupler : Tupler[L]) : tupler.Out = tupler(l)
-  }
-  implicit def tupled1[L <: HList](implicit tupler : Tupler[L]) =
-    new Case[tupled.type, L => tupler.Out](tupler.apply(_))
-  
-  /**
-   * Monomorphic instantiator for [[shapeless.Tuples.tupled]].
-   */
-  implicit def univInstTupled[F, G](t : tupled.type)(implicit c : Case[tupled.type, F => G]) : F => G = c.value
 }
 
 /**

@@ -278,6 +278,20 @@ object HList {
     val :: = scala.collection.immutable.::
     val #: = shapeless.::
   }
+  
+  /**
+   * Higher ranked function which converts `HLists` to `Tuples`. 
+   */
+  object tupled {
+    def apply[L <: HList](l : L)(implicit tupler : Tupler[L]) : tupler.Out = tupler(l)
+  }
+  implicit def tupled1[L <: HList](implicit tupler : Tupler[L]) =
+    new Case[tupled.type, L => tupler.Out](tupler.apply(_))
+  
+  /**
+   * Monomorphic instantiator for [[shapeless.Tuples.tupled]].
+   */
+  implicit def univInstTupled[F, G](t : tupled.type)(implicit c : Case[tupled.type, F => G]) : F => G = c.value
 
   type SplitAux[L <: HList, N <: Nat, P <: HList, S <: HList] = Split0[HNil, L, N, P, S]
   
@@ -307,13 +321,25 @@ trait IsHCons[L <: HList] {
   def tail(l : L) : T
 }
 
+trait IsHConsAux[L <: HList, H, T <: HList] {
+  def head(l : L) : H
+  def tail(l : L) : T
+}
+
 object IsHCons {
-  implicit def hlistIsHCons[H0, T0 <: HList] = new IsHCons[H0 :: T0] {
+  implicit def isHCons[H0, T0 <: HList](implicit isHCons : IsHConsAux[H0 :: T0, H0, T0]) = new IsHCons[H0 :: T0] {
     type H = H0
     type T = T0
   
-    def head(l : H0 :: T0) : H = l.head
-    def tail(l : H0 :: T0) : T = l.tail
+    def head(l : H0 :: T0) : H = isHCons.head(l)
+    def tail(l : H0 :: T0) : T = isHCons.tail(l)
+  }
+}
+
+object IsHConsAux {
+  implicit def hlistIsHCons[H, T <: HList] = new IsHConsAux[H :: T, H, T] {
+    def head(l : H :: T) : H = l.head
+    def tail(l : H :: T) : T = l.tail
   }
 }
 
@@ -1134,7 +1160,7 @@ trait Zip[L <: HList] {
 }
 
 object Zip {
-  import Tuples._
+  import HList.tupled
   
   implicit def zipper[L <: HList, OutT <: HList, OutM <: HList]
     (implicit

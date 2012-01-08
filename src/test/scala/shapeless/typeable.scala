@@ -307,5 +307,13 @@ class TypeableTests {
 
     val ces4 = es.cast[Either[Int, Unit]]
     assertTrue(ces4.isEmpty)
+    
+    val ri : Any = Right(1)
+    val r1 = ri.cast[Either[Int, Boolean]] map (_.right)
+    assertTrue(r1.isEmpty)
+
+    val rb : Any = Right(true)
+    val r2 = rb.cast[Either[Int, Boolean]] map (_.right)
+    assertTrue(r2.isDefined)
   }
 }
