@@ -58,8 +58,6 @@ case object HNil extends HNil
  * @author Miles Sabin
  */
 final class HListOps[L <: HList](l : L) {
-  import HList._
-  
   /**
    * Returns the head of this `HList`. Available only if there is evidence that this `HList` is composite.
    */
@@ -73,9 +71,8 @@ final class HListOps[L <: HList](l : L) {
   /**
    * Prepend the argument element to this `HList`.
    */
-  def ::[H](h : H) : H :: L = HCons(h, l)
+  def ::[H](h : H) : H :: L = shapeless.::(h, l)
 
-  
   /**
    * Prepend the argument `HList` to this `HList`.
    */
@@ -116,6 +113,57 @@ final class HListOps[L <: HList](l : L) {
   def select[U](implicit selector : Selector[L, U]) : U = selector(l)
   
   /**
+   * Returns the first element of type `U` of this `HList` plus the remainder of the `HList`. An explicit type argument
+   * must be provided. Available only if there is evidence that this `HList` has an element of type `U`.
+   */
+  def remove[U](implicit remove : Remove[U, L]) : (U, remove.Out) = remove(l)
+  
+  /**
+   * Returns the first elements of this `HList` that have types in `SL` plus the remainder of the `HList`. An expicit
+   * type argument must be provided. Available only if there is evidence that this `HList` contains elements with
+   * types in `SL`.
+   */
+  def removeAll[SL <: HList](implicit removeAll : RemoveAll[SL, L]) : (SL, removeAll.Out) = removeAll(l)
+
+  /**
+   * Replaces the first element of type `U` of this `HList` with the supplied value, also of type `U` returning both
+   * the replaced element and the updated `HList`. Available only if there is evidence that this `HList` has an element
+   * of type `U`.
+   */
+  def replace[U](u : U)(implicit replacer : Replacer[L, U, U]) : (U, replacer.Out) = replacer(l, u)
+  
+  class ReplaceTypeAux[U] {
+    def apply[V](v : V)(implicit replacer : Replacer[L, U, V]) : (U, replacer.Out) = replacer(l, v)
+  }
+  
+  /**
+   * Replaces the first element of type `U` of this `HList` with the supplied value of type `V`, return both the
+   * replaced element and the updated `HList`. An explicit type argument must be provided for `U`. Available only if
+   * there is evidence that this `HList` has an element of type `U`.
+   */
+  def replaceType[U] = new ReplaceTypeAux[U]
+  
+  /**
+   * Replaces the first element of type `U` of this `HList` with the supplied value, also of type `U`. Available only
+   * if there is evidence that this `HList` has an element of type `U`.
+   * 
+   * The dummy argument is here to avoid creating an ambiguity with RecordOps#updated and should be removed if
+   * SI-5414 is resolved in a way which eliminates the ambiguity.
+   */
+  def updated[U](u : U, dummy : Unit = ())(implicit replacer : Replacer[L, U, U]) : replacer.Out = replacer(l, u)._2
+  
+  class UpdatedTypeAux[U] {
+    def apply[V](v : V)(implicit replacer : Replacer[L, U, V]) : replacer.Out = replacer(l, v)._2
+  }
+  
+  /**
+   * Replaces the first element of type `U` of this `HList` with the supplied value of type `V`, also of type `U`. An
+   * explicit type argument must be provided for `U`. Available only if there is evidence that this `HList` has an
+   * element of type `U`.
+   */
+  def updatedType[U] = new UpdatedTypeAux[U]
+  
+  /**
    * Returns the first ''n'' elements of this `HList`. An explicit type argument must be provided. Available only if
    * there is evidence that this `HList` has at least ''n'' elements.
    */
@@ -150,7 +198,7 @@ final class HListOps[L <: HList](l : L) {
    * evidence that this `HList` has at least ''n'' elements.
    */
   def split[N <: Nat](n : N)(implicit split : Split[L, N]) : split.Out = split(l)
-
+  
   /**
    * Splits this `HList` at the ''nth'' element, returning the reverse of the prefix and suffix as a pair. An explicit
    * type argument must be provided. Available only if there is evidence that this `HList` has at least ''n'' elements.
@@ -216,7 +264,7 @@ final class HListOps[L <: HList](l : L) {
   /**
    * Zips this `HList` with its argument `HList` returning an `HList` of pairs.
    */
-  def zip[R <: HList](r : R)(implicit zipper : Zip[L :: R :: HNil]) : zipper.Out = zipper(HCons(l, HCons(r, HNil)))
+  def zip[R <: HList](r : R)(implicit zipper : Zip[L :: R :: HNil]) : zipper.Out = zipper(l :: r :: HNil)
   
   /**
    * Zips this `HList` of monomorphic function values with its argument `HList` of correspondingly typed function
@@ -266,11 +314,8 @@ final class HListOps[L <: HList](l : L) {
 }
 
 object HList {
-  implicit def hlistOps[L <: HList](l : L) = new HListOps(l)
+  implicit def hlistOps[L <: HList](l : L) : HListOps[L] = new HListOps(l)
 
-  type HCons[+H, +T <: HList] = ::[H, T]
-  val HCons = ::
-  
   /**
    * Convenience aliases for HList :: and List :: allowing them to be used together within match expressions.  
    */
@@ -606,6 +651,124 @@ object Selector {
   implicit def hlistSelect[H, T <: HList, U](implicit st : Selector[T, U]) = new Selector[H :: T, U] {
     def apply(l : H :: T) = st(l.tail)
   }
+}
+
+/**
+ * Type class supporting removal of an element from this `HList`. Available only if this `HList` contains an
+ * element of type `U`.
+ * 
+ * @author Stacy Curl
+ */
+trait Remove[E, L <: HList] {
+  type Out <: HList
+  def apply(l : L) : (E, Out)
+}
+
+trait RemoveAux[L <: HList, E, Rem <: HList] {
+  def apply(l : L) : (E, Rem)
+}
+
+object Remove {
+  implicit def hlistRemove[L <: HList, E, Rem <: HList](implicit aux: RemoveAux[L, E, Rem]) = new Remove[E, L] {
+    type Out = Rem
+    def apply(l : L) : (E, Rem) = aux(l)
+  }
+}
+
+object RemoveAux {
+  implicit def hlistRemove1[H, T <: HList] = new RemoveAux[H :: T, H, T] {
+    def apply(l : H :: T) : (H, T) = (l.head, l.tail)
+  }
+  
+  implicit def hlistRemove[H, T <: HList, E, Rem <: HList](implicit r : RemoveAux[T, E, Rem]) =
+    new RemoveAux[H :: T, E, H :: Rem] {
+      def apply(l : H :: T) : (E, H :: Rem) = {
+        val (e, tail) = r(l.tail)
+        (e, l.head :: tail)
+      }
+    }
+}
+
+/**
+ * Type class supporting removal of a sublist from this `HList`. Available only if this `HLists contains a
+ * sublist of type `SL`.
+ *
+ * The elements of `SL` do not have to be contiguous in this `HList`.
+ * 
+ * @author Stacy Curl
+ */
+trait RemoveAll[SL <: HList, L <: HList] {
+  type Out <: HList
+  def apply(l : L): (SL, Out)
+}
+
+trait RemoveAllAux[SL <: HList, L <: HList, Rem <: HList] {
+  def apply(l : L): (SL, Rem)
+}
+
+object RemoveAll {
+  implicit def removeAll[SL <: HList, L <: HList, Rem <: HList](implicit removeAll : RemoveAllAux[SL, L, Rem]) =
+    new RemoveAll[SL, L] {
+      type Out = Rem
+      def apply(l : L) = removeAll(l)
+    }
+}
+
+object RemoveAllAux {
+  implicit def hlistRemoveAllSingle[L <: HList, E, Rem <: HList](implicit rt : RemoveAux[L, E, Rem]) =
+    new RemoveAllAux[E :: HNil, L, Rem] {
+      def apply(l : L): (E :: HNil, Rem) = {
+        val (e, sub) = rt(l) 
+        (e :: HNil, sub)
+      }
+    }
+
+  implicit def hlistRemoveAll[L <: HList, E, RemE <: HList, Rem <: HList, SLT <: HList]
+    (implicit rt : RemoveAux[L, E, RemE], st : RemoveAllAux[SLT, RemE, Rem]) = 
+      new RemoveAllAux[E :: SLT, L, Rem] {
+        def apply(l : L) : (E :: SLT, Rem) = {
+          val (e, rem) = rt(l)
+          val (sl, left) = st(rem)
+          (e :: sl, left)
+        }
+      }
+}
+
+/**
+ * Type class supporting replacement of the first element of type U from this `HList` with an element of type V.
+ * Available only if this `HList` contains an element of type `U`.
+ * 
+ * @author Miles Sabin
+ */
+trait Replacer[L <: HList, U, V] {
+  type Out <: HList
+  def apply(l : L, v : V) : (U, Out)
+}
+
+trait ReplacerAux[L <: HList, U, V, Out <: HList] {
+  def apply(l : L, v : V) : (U, Out)
+}
+
+object Replacer {
+  implicit def replacer[L <: HList, U, V, Out0 <: HList](implicit replacer : ReplacerAux[L, U, V, Out0]) =
+    new Replacer[L, U, V] {
+      type Out = Out0
+      def apply(l : L, v : V) : (U, Out) = replacer(l, v)
+    }
+}
+
+object ReplacerAux {
+  implicit def hlistReplacer1[T <: HList, U, V] = new ReplacerAux[U :: T, U, V, V :: T] {
+    def apply(l : U :: T, v : V) : (U, V :: T) = (l.head, v :: l.tail)
+  }
+  
+  implicit def hlistReplacer2[H, T <: HList, U, V, Out <: HList](implicit ut : ReplacerAux[T, U, V, Out]) =
+    new ReplacerAux[H :: T, U, V, H :: Out] {
+      def apply(l : H :: T, v : V) : (U, H :: Out) = {
+        val (u, outT) = ut(l.tail, v)
+        (u, l.head :: outT)
+      }
+    }
 }
 
 /**

@@ -463,6 +463,122 @@ class HListTests {
   }
   
   @Test
+  def testReplace {
+    val sl = 1 :: true :: "foo" :: 2.0 :: HNil
+    
+    val (i, r1) = sl.replace(23)
+    typed[Int](i)
+    assertEquals(1, i)
+    assertEquals(23 :: true :: "foo" :: 2.0 :: HNil, r1)
+    
+    val (b, r2) = sl.replace(false)
+    typed[Boolean](b)
+    assertEquals(true, b)
+    assertEquals(1 :: false :: "foo" :: 2.0 :: HNil, r2)
+
+    val (s, r3) = sl.replace("bar")
+    typed[String](s)
+    assertEquals("foo", s)
+    assertEquals(1 :: true :: "bar" :: 2.0 :: HNil, r3)
+
+    val (d, r4) = sl.replace(3.0)
+    typed[Double](d)
+    assertEquals(2.0, d, Double.MinPositiveValue)
+    assertEquals(1 :: true :: "foo" :: 3.0 :: HNil, r4)
+    
+    val (i2, r5) = sl.replaceType[Int]('*')
+    typed[Int](i2)
+    typed[Char](r5(_0))
+    assertEquals(1, i2)
+    assertEquals('*' :: true :: "foo" :: 2.0 :: HNil, r5)
+
+    val (b2, r6) = sl.replaceType[Boolean]('*')
+    typed[Boolean](b2)
+    typed[Char](r6(_1))
+    assertEquals(true, b2)
+    assertEquals(1 :: '*' :: "foo" :: 2.0 :: HNil, r6)
+
+    val (s2, r7) = sl.replaceType[String]('*')
+    typed[String](s2)
+    typed[Char](r7(_2))
+    assertEquals("foo", s2)
+    assertEquals(1 :: true :: '*' :: 2.0 :: HNil, r7)
+
+    val (d2, r8) = sl.replaceType[Double]('*')
+    typed[Double](d2)
+    typed[Char](r8(_3))
+    assertEquals(2.0, d2, Double.MinPositiveValue)
+    assertEquals(1 :: true :: "foo" :: '*' :: HNil, r8)
+    
+    val fruits = a :: p :: a :: f :: HNil
+    val (x1, rr1) = fruits.replaceType[Pear](a)
+    typed[Pear](x1)
+    typed[Apple :: Apple :: Apple :: Fruit :: HNil](rr1)
+    
+    val (x2, rr2) = fruits.replaceType[Pear](f)
+    typed[Pear](x2)
+    typed[Apple :: Fruit :: Apple :: Fruit :: HNil](rr2)
+    
+    val (x3, rr3) = fruits.replaceType[Fruit](p)
+    typed[Fruit](x3)
+    typed[Apple :: Pear :: Apple :: Pear :: HNil](rr3)
+    
+    val (x4, rr4) = fruits.replace(p)
+    typed[Pear](x4)
+    typed[Apple :: Pear :: Apple :: Fruit :: HNil](rr4)
+    
+    val (x5, rr5) = fruits.replace(f)
+    typed[Fruit](x5)
+    typed[Apple :: Pear :: Apple :: Fruit :: HNil](rr5)
+  }
+  
+  @Test
+  def testUpdate {
+    val sl = 1 :: true :: "foo" :: 2.0 :: HNil
+    
+    val r1 = sl.updated(23)
+    assertEquals(23 :: true :: "foo" :: 2.0 :: HNil, r1)
+    
+    val r2 = sl.updated(false)
+    assertEquals(1 :: false :: "foo" :: 2.0 :: HNil, r2)
+
+    val r3 = sl.updated("bar")
+    assertEquals(1 :: true :: "bar" :: 2.0 :: HNil, r3)
+
+    val r4 = sl.updated(3.0)
+    assertEquals(1 :: true :: "foo" :: 3.0 :: HNil, r4)
+    
+    val r5 = sl.updatedType[Int]('*')
+    assertEquals('*' :: true :: "foo" :: 2.0 :: HNil, r5)
+
+    val r6 = sl.updatedType[Boolean]('*')
+    assertEquals(1 :: '*' :: "foo" :: 2.0 :: HNil, r6)
+
+    val r7 = sl.updatedType[String]('*')
+    assertEquals(1 :: true :: '*' :: 2.0 :: HNil, r7)
+
+    val r8 = sl.updatedType[Double]('*')
+    assertEquals(1 :: true :: "foo" :: '*' :: HNil, r8)
+    
+    val fruits = a :: p :: a :: f :: HNil
+    
+    val rr1 = fruits.updatedType[Pear](a)
+    typed[Apple :: Apple :: Apple :: Fruit :: HNil](rr1)
+    
+    val rr2 = fruits.updatedType[Pear](f)
+    typed[Apple :: Fruit :: Apple :: Fruit :: HNil](rr2)
+    
+    val rr3 = fruits.updatedType[Fruit](p)
+    typed[Apple :: Pear :: Apple :: Pear :: HNil](rr3)
+    
+    val rr4 = fruits.updated(p)
+    typed[Apple :: Pear :: Apple :: Fruit :: HNil](rr4)
+    
+    val rr5 = fruits.updated(f)
+    typed[Apple :: Pear :: Apple :: Fruit :: HNil](rr5)
+  }
+
+  @Test
   def testSplitLeft {
     val sl = 1 :: true :: "foo" :: 2.0 :: HNil
     val sl2 = 23 :: 3.0 :: "foo" :: () :: "bar" :: true :: 5L :: HNil
@@ -681,5 +797,39 @@ class HListTests {
     assertEquals(3, tmixed._1)
     assertEquals(4 :: 5 :: Nil, tmixed._2)
     assertEquals(false :: () :: HNil, tmixed._3)
+  }
+
+  @Test
+  def testRemove {
+    val l = 1 :: true :: "foo" :: HNil
+
+    val li = l.remove[Int]
+    typed[(Int, Boolean :: String :: HNil)](li)
+    assertEquals((1, true :: "foo" :: HNil), li)
+
+    val lb = l.remove[Boolean]
+    typed[(Boolean, Int :: String :: HNil)](lb)
+    assertEquals((true, 1 :: "foo" :: HNil), lb)
+
+    val ls = l.remove[String]
+    typed[(String, Int :: Boolean :: HNil)](ls)
+    assertEquals(("foo", 1 :: true :: HNil), ls)
+  }
+
+  @Test
+  def testRemoveAll {
+    val l = 1 :: true :: "foo" :: HNil
+
+    val li = l.removeAll[Int :: HNil]
+    typed[(Int :: HNil, Boolean :: String :: HNil)](li)
+    assertEquals((1 :: HNil, true :: "foo" :: HNil), li)
+
+    val lb = l.removeAll[Boolean :: HNil]
+    typed[(Boolean :: HNil, Int :: String :: HNil)](lb)
+    assertEquals((true :: HNil, 1 :: "foo" :: HNil), lb)
+
+    val lbi = l.removeAll[Boolean :: Int :: HNil]
+    typed[(Boolean :: Int :: HNil, String :: HNil)](lbi)
+    assertEquals((true :: 1 :: HNil, "foo" :: HNil), lbi)
   }
 }
