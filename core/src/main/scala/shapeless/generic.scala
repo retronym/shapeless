@@ -557,8 +557,6 @@ class GenericMacros(val c: whitebox.Context) extends CaseClassMacros {
       cq"$name: $tpe => $index"
     }
 
-    val from = q"""_root_.shapeless.Coproduct.unsafeGet(p).asInstanceOf[$tpe]"""
-
     val to = {
       val toCases = ctorsOf(tpe) zip (Stream from 0) map (mkCoproductCases _).tupled
       q"""_root_.shapeless.Coproduct.unsafeMakeCoproduct(p match { case ..$toCases }, p).asInstanceOf[Repr]"""
@@ -569,7 +567,7 @@ class GenericMacros(val c: whitebox.Context) extends CaseClassMacros {
       final class $clsName extends _root_.shapeless.Generic[$tpe] {
         type Repr = ${reprTpe(tpe)}
         def to(p: $tpe): Repr = $to
-        def from(p: Repr): $tpe = $from
+        def from(p: Repr): $tpe = _root_.shapeless.Coproduct.unsafeGet(p).asInstanceOf[$tpe]
       }
       new $clsName()
     """
