@@ -189,13 +189,7 @@ class SingletonTypeMacros(val c: whitebox.Context) extends SingletonTypeUtils {
     val name = TypeName(c.freshName())
 
     q"""
-      {
-        final class $name extends _root_.shapeless.syntax.SingletonOps {
-          type T = $sTpe
-          val witness = $w
-        }
-        new $name
-      }
+      _root_.shapeless.syntax.SingletonOps.apply[$sTpe]($w).asInstanceOf[_root_.shapeless.syntax.SingletonOps { type T = $sTpe }]
     """
   }
 

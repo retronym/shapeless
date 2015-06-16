@@ -46,3 +46,10 @@ trait SingletonOps {
    */
   def ->>[V](v: V): FieldType[T, V] = field[T](v)
 }
+
+object SingletonOps {
+  def apply[T0](witness0: Witness.Aux[T0]): SingletonOps { type T = T0 } = new SingletonOps {
+    override type T = T0
+    override val witness = witness0
+  }
+}
